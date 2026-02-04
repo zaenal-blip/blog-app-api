@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { UserService } from "./user.service.js";
+import { ApiError } from "../../utils/api-error.js";
 
 export class UserController {
   constructor(private userService: UserService) {}
@@ -40,4 +41,16 @@ export class UserController {
     const result = await this.userService.deleteUser(id);
     res.status(200).send(result);
   };
+
+  uploadPhoto = async (req: Request, res: Response) => {
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const photo = files.photo?.[0];
+    if (!photo) throw new ApiError("Photo file is required", 400);
+
+    const userId = res.locals.user.id;
+
+    const result = await this.userService.uploadPhoto (userId, photo);
+    res.status (200).send (result);
+
+  }
 }

@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient, User } from "../../generated/prisma/client.js";
 import { PaginationQueryParams } from "../../types/pagination.js";
 import { ApiError } from "../../utils/api-error.js";
+import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
 
 interface GetUsersQuery extends PaginationQueryParams {
   search: string;
@@ -15,7 +16,9 @@ interface CreateUserBody {
 }
 
 export class UserService {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient,
+    private cloudinaryService: CloudinaryService
+  ) {}
 
   getUsers = async (query: GetUsersQuery) => {
     const{page, take, sortBy, sortOrder,search} = query;
@@ -113,5 +116,26 @@ export class UserService {
     });
 
     return { message: "delete user success" };
+  };
+
+  uploadPhoto = async (userId: number, photo: Express.Multer.File) => {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) throw new ApiError("User not found", 404);
+
+    if (user.image){
+      await this.cloudinaryService.removeByUrl(user.image);
+    }
+
+    const {secure_url} = await this.cloudinaryService.upload(photo);
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { image: secure_url },
+      omit: { password: true },
+    });
+
+    return {...updatedUser,message: "upload photo success"};
   };
 }
