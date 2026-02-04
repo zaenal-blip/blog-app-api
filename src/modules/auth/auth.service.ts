@@ -4,11 +4,14 @@ import { PrismaClient, User, Provider } from "../../generated/prisma/client.js";
 import { comparePassword, hashPassword } from "../../lib/argon.js";
 import { UserInfo } from "../../types/google.js";
 import { ApiError } from "../../utils/api-error.js";
+import { RegisterDTO } from "./dto/register.dto.js";
+import { LoginDTO } from "./dto/login.dto.js";
+import { GoogleDTO } from "./dto/google.dto.js";
 
 export class AuthService {
   constructor(private prisma: PrismaClient) {}
 
-  register = async (body: Pick<User, "name" | "email" | "password">) => {
+  register = async (body: RegisterDTO) => {
     //1. cek dulu emailnya udah kepake apa belum
     const user = await this.prisma.user.findUnique({
       where: {
@@ -36,7 +39,7 @@ export class AuthService {
     //5. return message register success
     return { message: "Register success" };
   };
-  login = async (body: Pick<User, "email" | "password">) => {
+  login = async (body: LoginDTO) => {
     // 1.cek emailny ada di db atau enggak
     const user = await this.prisma.user.findUnique({
       where: {
@@ -69,7 +72,7 @@ export class AuthService {
     };
   };
 
-google = async (body: { accessToken: string }) => {
+google = async (body:GoogleDTO) => {
   const { data } = await axios.get<UserInfo>(
     "https://www.googleapis.com/oauth2/v3/userinfo",
     {
