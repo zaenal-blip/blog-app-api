@@ -7,9 +7,10 @@ import { ApiError } from "../../utils/api-error.js";
 import { RegisterDTO } from "./dto/register.dto.js";
 import { LoginDTO } from "./dto/login.dto.js";
 import { GoogleDTO } from "./dto/google.dto.js";
+import { MailService } from "../mail/mail.service.js";
 
 export class AuthService {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private prisma: PrismaClient, private mailService: MailService) { }
 
   register = async (body: RegisterDTO) => {
     //1. cek dulu emailnya udah kepake apa belum
@@ -36,7 +37,10 @@ export class AuthService {
       },
     });
 
-    //5. return message register success
+    // 5. send email
+    this.mailService.sendEmail(body.email, `welcome, ${body.name}`, "welcome", { name: body.name });
+
+    //6. return message register success
     return { message: "Register success" };
   };
   login = async (body: LoginDTO) => {
@@ -72,59 +76,59 @@ export class AuthService {
     };
   };
 
-google = async (body:GoogleDTO) => {
-  const { data } = await axios.get<UserInfo>(
-    "https://www.googleapis.com/oauth2/v3/userinfo",
-    {
-      headers: {
-        Authorization: `Bearer ${body.accessToken}`,
-      },
-    }
-  );
-
-  const user = await this.prisma.user.findUnique({
-    where: { email: data.email },
-  });
-
-  // helper
-  const signToken = (user: { id: number; role: string }) =>
-    jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET!,
-      { expiresIn: "2h" }
+  google = async (body: GoogleDTO) => {
+    const { data } = await axios.get<UserInfo>(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: {
+          Authorization: `Bearer ${body.accessToken}`,
+        },
+      }
     );
 
-  const sanitizeUser = <T extends { password?: string }>(user: T) => {
-    const { password, ...rest } = user;
-    return rest;
-  };
-
-  // user belum ada → create
-  if (!user) {
-    const newUser = await this.prisma.user.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        password: "",
-        Provider: Provider.GOOGLE,
-      },
+    const user = await this.prisma.user.findUnique({
+      where: { email: data.email },
     });
 
-    return {
-      ...sanitizeUser(newUser),
-      accessToken: signToken(newUser),
+    // helper
+    const signToken = (user: { id: number; role: string }) =>
+      jwt.sign(
+        { id: user.id, role: user.role },
+        process.env.JWT_SECRET!,
+        { expiresIn: "2h" }
+      );
+
+    const sanitizeUser = <T extends { password?: string }>(user: T) => {
+      const { password, ...rest } = user;
+      return rest;
     };
-  }
 
-  // user ada tapi bukan google
-  if (user.Provider !== Provider.GOOGLE) {
-    throw new ApiError("Account already registered without google", 400);
-  }
+    // user belum ada → create
+    if (!user) {
+      const newUser = await this.prisma.user.create({
+        data: {
+          name: data.name,
+          email: data.email,
+          password: "",
+          Provider: Provider.GOOGLE,
+        },
+      });
 
-  // user google existing
-  return {
-    ...sanitizeUser(user),
-    accessToken: signToken(user),
+      return {
+        ...sanitizeUser(newUser),
+        accessToken: signToken(newUser),
+      };
+    }
+
+    // user ada tapi bukan google
+    if (user.Provider !== Provider.GOOGLE) {
+      throw new ApiError("Account already registered without google", 400);
+    }
+
+    // user google existing
+    return {
+      ...sanitizeUser(user),
+      accessToken: signToken(user),
+    };
   };
-};
 }

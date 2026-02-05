@@ -15,6 +15,7 @@ import { UserController } from "./modules/user/user.controller.js";
 import { UserRouter } from "./modules/user/user.router.js";
 import { UserService } from "./modules/user/user.service.js";
 import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
+import { MailService } from "./modules/mail/mail.service.js";
 
 const PORT = 8000;
 
@@ -38,8 +39,9 @@ export class App {
     const prismaClient = prisma;
 
     // services
+    const mailService = new MailService();
     const cloudinaryService = new CloudinaryService();
-    const authService = new AuthService(prismaClient);
+    const authService = new AuthService(prismaClient, mailService);
     const userService = new UserService(prismaClient, cloudinaryService);
 
     // controllers
