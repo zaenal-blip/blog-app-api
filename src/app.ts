@@ -18,6 +18,7 @@ import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
 import { MailService } from "./modules/mail/mail.service.js";
 import cookieParser from "cookie-parser";
 import { corsOptions } from "./config/cors.js";
+import { RedisService } from "./modules/redis/redis.service.js";
 
 const PORT = 8000;
 
@@ -42,10 +43,11 @@ export class App {
     const prismaClient = prisma;
 
     // services
+    const redisService = new RedisService();
     const mailService = new MailService();
     const cloudinaryService = new CloudinaryService();
     const authService = new AuthService(prismaClient, mailService);
-    const userService = new UserService(prismaClient, cloudinaryService);
+    const userService = new UserService(prismaClient, cloudinaryService, redisService);
 
     // controllers
     const authController = new AuthController(authService);
