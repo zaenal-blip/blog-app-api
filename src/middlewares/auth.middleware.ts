@@ -4,22 +4,22 @@ import jwt from "jsonwebtoken";
 import { Role } from "../generated/prisma/enums.js";
 
 export class AuthMiddleware {
-    verifyToken = (SecretKey : string) => {
+    verifyToken = (SecretKey: string) => {
         return (req: Request, res: Response, next: NextFunction) => {
-            const token = req.headers.authorization?.split(" ")[1];
+            const token = req.cookies?.token;
 
-            if (!token) throw new ApiError ("Token not found", 401);
+            if (!token) throw new ApiError("Token not found", 401);
 
-            jwt.verify(token,SecretKey, (err, payload) => {
-                if (err){
+            jwt.verify(token, SecretKey, (err: any, payload: any) => {
+                if (err) {
                     if (err instanceof jwt.TokenExpiredError) {
                         throw new ApiError("Token expired", 401);
-                    }else {
+                    } else {
                         throw new ApiError("Invalid token", 401);
                     }
                 }
 
-                res.locals.user=payload;
+                res.locals.user = payload;
                 next();
             });
         }

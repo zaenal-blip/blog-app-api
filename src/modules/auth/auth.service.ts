@@ -38,7 +38,8 @@ export class AuthService {
     });
 
     // 5. send email
-    this.mailService.sendEmail(body.email, `welcome, ${body.name}`, "welcome", { name: body.name });
+    this.mailService.sendEmail
+      (body.email, `welcome, ${body.name}`, "welcome", { name: body.name });
 
     //6. return message register success
     return { message: "Register success" };
@@ -66,46 +67,81 @@ export class AuthService {
       role: user.role,
     };
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
-      expiresIn: "2h",
+      expiresIn: "15m",
     });
-    // 6.retiurn user data + token
+    // buat refresh token
+    const refreshToken = jwt.sign(payload, process.env.JWT_SECRET_REFRESH!, {
+      expiresIn: "3d",
+    });
+
+    await this.prisma.refreshToken.upsert({
+      where: { userId: user.id },
+      update: {
+        token: refreshToken,
+        expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      },
+      create: {
+        userId: user.id,
+        token: refreshToken,
+        expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      },
+    })
+
+    // 6.return user data + token
     const { password, ...userWithoutPassword } = user; // remove property password
     return {
       ...userWithoutPassword,
       accessToken,
+      refreshToken,
     };
   };
 
-  google = async (body: GoogleDTO) => {
-    const { data } = await axios.get<UserInfo>(
-      "https://www.googleapis.com/oauth2/v3/userinfo",
-      {
-        headers: {
-          Authorization: `Bearer ${body.accessToken}`,
-        },
-      }
-    );
+  logout = async (refreshToken?: string) => {
+    if (!refreshToken) return;
 
-    const user = await this.prisma.user.findUnique({
-      where: { email: data.email },
+    await this.prisma.refreshToken.deleteMany({
+      where: {
+        token: refreshToken
+      }
     });
 
-    // helper
-    const signToken = (user: { id: number; role: string }) =>
-      jwt.sign(
-        { id: user.id, role: user.role },
-        process.env.JWT_SECRET!,
-        { expiresIn: "2h" }
-      );
+    return { message: "Logout success" };
+  }
+  google = async (body: GoogleDTO) => {
+    // ===== helpers =====
+    const signAccessToken = (user: { id: number; role: string }) =>
+      jwt.sign(user, process.env.JWT_SECRET!, { expiresIn: "15m" });
+
+    const signRefreshToken = (user: { id: number; role: string }) =>
+      jwt.sign(user, process.env.JWT_SECRET_REFRESH!, { expiresIn: "3d" });
 
     const sanitizeUser = <T extends { password?: string }>(user: T) => {
       const { password, ...rest } = user;
       return rest;
     };
 
-    // user belum ada → create
+    const refreshExpiredAt = new Date(
+      Date.now() + 3 * 24 * 60 * 60 * 1000,
+    );
+
+    // ===== get google user info =====
+    const { data } = await axios.get<UserInfo>(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: {
+          Authorization: `Bearer ${body.accessToken}`,
+        },
+      },
+    );
+
+    // ===== find user =====
+    let user = await this.prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    // ===== create user if not exists =====
     if (!user) {
-      const newUser = await this.prisma.user.create({
+      user = await this.prisma.user.create({
         data: {
           name: data.name,
           email: data.email,
@@ -113,22 +149,58 @@ export class AuthService {
           Provider: Provider.GOOGLE,
         },
       });
-
-      return {
-        ...sanitizeUser(newUser),
-        accessToken: signToken(newUser),
-      };
     }
 
-    // user ada tapi bukan google
+    // ===== provider mismatch =====
     if (user.Provider !== Provider.GOOGLE) {
       throw new ApiError("Account already registered without google", 400);
     }
 
-    // user google existing
+    // ===== generate tokens =====
+    const accessToken = signAccessToken(user);
+    const refreshToken = signRefreshToken(user);
+
+    // ===== upsert refresh token =====
+    await this.prisma.refreshToken.upsert({
+      where: { userId: user.id },
+      update: {
+        token: refreshToken,
+        expiresAt: refreshExpiredAt,
+      },
+      create: {
+        userId: user.id,
+        token: refreshToken,
+        expiresAt: refreshExpiredAt,
+      },
+    });
+
     return {
       ...sanitizeUser(user),
-      accessToken: signToken(user),
+      accessToken,
+      refreshToken,
     };
   };
+  refresh = async (refreshToken?: string) => {
+    if (!refreshToken) throw new ApiError("Refresh token is required", 400);
+
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { token: refreshToken },
+      include: { user: true },
+    });
+    if (!stored) throw new ApiError("Invalid refresh token", 400);
+
+    const isExpired = stored.expiresAt < new Date();
+    if (isExpired) throw new ApiError("Refresh token expired", 400);
+
+    const payload = {
+      id: stored.user.id,
+      role: stored.user.role,
+    };
+    const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
+      expiresIn: "15m",
+    });
+    return {
+      accessToken: newAccessToken,
+    };
+  }
 }
