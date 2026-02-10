@@ -34,6 +34,16 @@ export class AuthRouter {
       this.validationMiddleware.validateBody(GoogleDTO),
       this.authController.google,
     );
+
+    this.router.post(
+      "/refresh",
+      this.authController.refresh,
+    );
+
+    this.router.post(
+      "/logout",
+      this.authController.logout,
+    );
   };
 
   getRouter = () => {
