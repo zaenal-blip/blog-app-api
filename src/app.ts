@@ -42,10 +42,11 @@ export class App {
     const prismaClient = prisma;
 
     // services
+    const redisService = new RedisService();
     const mailService = new MailService();
     const cloudinaryService = new CloudinaryService();
     const authService = new AuthService(prismaClient, mailService);
-    const userService = new UserService(prismaClient, cloudinaryService);
+    const userService = new UserService(prismaClient, cloudinaryService, redisService);
 
     // controllers
     const authController = new AuthController(authService);

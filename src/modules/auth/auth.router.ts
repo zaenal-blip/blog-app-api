@@ -4,6 +4,7 @@ import express, { Router } from "express";
 import { RegisterDTO } from "./dto/register.dto.js";
 import { LoginDTO } from "./dto/login.dto.js";
 import { GoogleDTO } from "./dto/google.dto.js";
+import { ForgotPasswordDTO } from "./dto/forgot-password.dto.js";
 
 export class AuthRouter {
   private router: Router;
