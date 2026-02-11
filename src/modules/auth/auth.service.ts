@@ -180,23 +180,6 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
-  };
-  refresh = async (refreshToken?: string) => {
-    if (!refreshToken) throw new ApiError("Refresh token is required", 400);
-
-    const stored = await this.prisma.refreshToken.findUnique({
-      where: { token: refreshToken },
-      include: { user: true },
-    });
-    if (!stored) throw new ApiError("Invalid refresh token", 400);
-
-    const isExpired = stored.expiresAt < new Date();
-    if (isExpired) throw new ApiError("Refresh token expired", 400);
-
-    const payload = {
-      id: stored.user.id,
-      role: stored.user.role,
-    };
     const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
       expiresIn: "15m",
     });
@@ -230,4 +213,27 @@ export class AuthService {
     // 5. return success
     return { message: "send email success"};
   };
+  refresh = async (refreshToken?: string) => {
+    if (!refreshToken) throw new ApiError("Refresh token is required", 400);
+
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { token: refreshToken },
+      include: { user: true },
+    });
+    if (!stored) throw new ApiError("Invalid refresh token", 400);
+
+    const isExpired = stored.expiresAt < new Date();
+    if (isExpired) throw new ApiError("Refresh token expired", 400);
+
+    const payload = {
+      id: stored.user.id,
+      role: stored.user.role,
+    };
+    const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
+      expiresIn: "15m",
+    });
+    return {
+      accessToken: newAccessToken,
+    };
+  }
 }

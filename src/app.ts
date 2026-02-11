@@ -18,8 +18,6 @@ import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
 import { MailService } from "./modules/mail/mail.service.js";
 import cookieParser from "cookie-parser";
 import { corsOptions } from "./config/cors.js";
-import { RedisService } from "./modules/redis/redis.service.js";
-import { loggerHttp } from "./lib/logger-http.js";
 
 const PORT = 8000;
 
@@ -35,7 +33,6 @@ export class App {
 
   private configure = () => {
     this.app.use(cors(corsOptions));
-    this.app.use(loggerHttp)
     this.app.use(express.json());
     this.app.use(cookieParser());
   };

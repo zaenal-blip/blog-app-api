@@ -45,13 +45,6 @@ export class AuthRouter {
       "/logout",
       this.authController.logout,
     );
-
-    this.router.post(
-      "/forgot-password",
-      this.validationMiddleware.validateBody(ForgotPasswordDTO),
-      this.authController.forgotPassword,
-    );
-
   };
 
   getRouter = () => {
