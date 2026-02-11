@@ -8,6 +8,7 @@ import { RegisterDTO } from "./dto/register.dto.js";
 import { LoginDTO } from "./dto/login.dto.js";
 import { GoogleDTO } from "./dto/google.dto.js";
 import { MailService } from "../mail/mail.service.js";
+import { ForgotPasswordDTO } from "./dto/forgot-password.dto.js";
 
 export class AuthService {
   constructor(private prisma: PrismaClient, private mailService: MailService) { }
@@ -203,4 +204,30 @@ export class AuthService {
       accessToken: newAccessToken,
     };
   }
+  forgotPassword = async (body: ForgotPasswordDTO) => {
+    // 1. cek email ada di db atau enggak
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: body.email,
+      },
+    });
+    // 2. kalo enggak ada, return success
+    if (!user) return { message: "send email success" };
+    // 3. generate token random
+    const payload = {
+      id: user.id,
+      role: user.role,
+    };
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
+      expiresIn: "15m",
+    });
+    // 4. Kirim email reset password + token
+    this.mailService.sendEmail(
+      user.email, 
+      "forgot password", 
+      "Reset password",
+    {link: `http://localhost:5173/reset-password/${accessToken}`});
+    // 5. return success
+    return { message: "send email success"};
+  };
 }

@@ -4,6 +4,7 @@ import express, { Router } from "express";
 import { RegisterDTO } from "./dto/register.dto.js";
 import { LoginDTO } from "./dto/login.dto.js";
 import { GoogleDTO } from "./dto/google.dto.js";
+import { ForgotPasswordDTO } from "./dto/forgot-password.dto.js";
 
 export class AuthRouter {
   private router: Router;
@@ -44,6 +45,13 @@ export class AuthRouter {
       "/logout",
       this.authController.logout,
     );
+
+    this.router.post(
+      "/forgot-password",
+      this.validationMiddleware.validateBody(ForgotPasswordDTO),
+      this.authController.forgotPassword,
+    );
+
   };
 
   getRouter = () => {
