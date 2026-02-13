@@ -9,6 +9,7 @@ import { LoginDTO } from "./dto/login.dto.js";
 import { GoogleDTO } from "./dto/google.dto.js";
 import { MailService } from "../mail/mail.service.js";
 import { ForgotPasswordDTO } from "./dto/forgot-password.dto.js";
+import { ResetPasswordDTO } from "./dto/reset-password.dto.js";
 
 export class AuthService {
   constructor(private prisma: PrismaClient, private mailService: MailService) { }
@@ -180,38 +181,6 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
-    const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
-      expiresIn: "15m",
-    });
-    return {
-      accessToken: newAccessToken,
-    };
-  }
-  forgotPassword = async (body: ForgotPasswordDTO) => {
-    // 1. cek email ada di db atau enggak
-    const user = await this.prisma.user.findUnique({
-      where: {
-        email: body.email,
-      },
-    });
-    // 2. kalo enggak ada, return success
-    if (!user) return { message: "send email success" };
-    // 3. generate token random
-    const payload = {
-      id: user.id,
-      role: user.role,
-    };
-    const accessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
-      expiresIn: "15m",
-    });
-    // 4. Kirim email reset password + token
-    this.mailService.sendEmail(
-      user.email, 
-      "forgot password", 
-      "Reset password",
-    {link: `http://localhost:5173/reset-password/${accessToken}`});
-    // 5. return success
-    return { message: "send email success"};
   };
   refresh = async (refreshToken?: string) => {
     if (!refreshToken) throw new ApiError("Refresh token is required", 400);
@@ -235,5 +204,48 @@ export class AuthService {
     return {
       accessToken: newAccessToken,
     };
+  };
+  forgotPassword = async (body: ForgotPasswordDTO) => {
+    // 1. cek email ada di db atau enggak
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: body.email,
+      },
+    });
+    // 2. kalo enggak ada, return success
+    if (!user) return { message: "send email success" };
+    // 3. generate token random
+    const payload = {
+      id: user.id,
+      role: user.role,
+    };
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET_RESET!, {
+      expiresIn: "15m",
+    });
+    // 4. Kirim email reset password + token
+    this.mailService.sendEmail(
+      user.email,
+      "forgot password",
+      "reset-password",
+      { link: `${process.env.BASE_URL_FE}/reset-password/${accessToken}` }
+    );
+    // 5. return success
+    return { message: "send email success" };
+  };
+  resetPassword = async (body: ResetPasswordDTO, userID: number) => {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userID },
+    });
+    if (!user) {
+      throw new ApiError("User not found", 404);
+    }
+
+    const hashedPassword = await hashPassword(body.password);
+
+    await this.prisma.user.update({
+      where: { id: userID },
+      data: { password: hashedPassword },
+    });
+    return { message: "Password reset success" };
   }
 }
