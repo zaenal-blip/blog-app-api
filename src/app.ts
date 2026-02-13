@@ -61,7 +61,7 @@ export class App {
     const uploadMiddleware = new UploadMiddleware();
 
     // routes
-    const authRouter = new AuthRouter(authController, validationMiddleware);
+    const authRouter = new AuthRouter(authController, validationMiddleware, authMiddleware);
     const userRouter = new UserRouter(userController, authMiddleware, uploadMiddleware);
 
     // entry point
