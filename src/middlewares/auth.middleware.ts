@@ -14,7 +14,7 @@ export class AuthMiddleware {
       }
 
       if (!token) {
-        token = req.cookies?.accessToken;
+        token = req.cookies?.token;
       }
 
       if (!token) {

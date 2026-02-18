@@ -26,6 +26,7 @@ model User {
   updatedAt DateTime  @updatedAt
   addresses Address[]
   refreshToken RefreshToken?
+  blogs     Blog[]
 
   @@map("users")
 }
@@ -63,5 +64,21 @@ model Address {
   updatedAt DateTime @updatedAt
 
   @@map("addresses") // snacke_case table name
+}
+
+model Blog {
+  id        Int      @id @default(autoincrement())
+  title     String   @unique
+  slug      String   @unique
+  description String @db.Text
+  thumbnail String
+  content   String   @db.Text
+  category String @default("General")
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("blogs")
 }
 
